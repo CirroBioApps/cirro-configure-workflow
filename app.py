@@ -294,7 +294,7 @@ class SourceConfig(WorkflowConfigElement):
     def update_value(self, config: 'WorkflowConfig', kw: str):
 
         # Get the updated value
-        key = f"{self._id}.{kw}.{st.session_state.get('form_ix', 0)}"
+        key = f"{self._id}.{kw}.{config.form_ix}"
         val = st.session_state[key]
 
         # If no change has been made
@@ -309,14 +309,14 @@ class SourceConfig(WorkflowConfigElement):
 
     def input_kwargs(self, config: 'WorkflowConfig', kw: str):
         return dict(
-            key=f"{self._id}.{kw}.{st.session_state.get('form_ix', 0)}",
+            key=f"{self._id}.{kw}.{config.form_ix}",
             on_change=self.update_value,
             args=(config, kw)
         )
 
     def input_process_kwargs(self, config: 'WorkflowConfig', kw: str):
         return dict(
-            key=f"{self._id}.{kw}.{st.session_state.get('form_ix', 0)}",
+            key=f"{self._id}.{kw}.{config.form_ix}",
             on_change=self.update_process_list,
             args=(config, kw)
         )
@@ -325,7 +325,7 @@ class SourceConfig(WorkflowConfigElement):
         return long_name.rsplit(" (", 1)[-1].rstrip(")")
 
     def update_process_list(self, config: 'WorkflowConfig', kw: str):
-        key = f"{self._id}.{kw}.{st.session_state.get('form_ix', 0)}"
+        key = f"{self._id}.{kw}.{config.form_ix}"
         process_list = st.session_state[key]
 
         # Get the process IDs for each process
@@ -440,7 +440,7 @@ class UIElement:
     workflow_config: 'WorkflowConfig'
 
     def ui_key(self, kw: str):
-        return f"{self.ui_key_prefix}.{self.id}.{kw}.{st.session_state.get('form_ix', 0)}" # noqa
+        return f"{self.ui_key_prefix}.{self.id}.{kw}.{self.workflow_config.form_ix}" # noqa
 
     def remove(self):
         """Remove this param from the inputs."""
@@ -1135,7 +1135,7 @@ class ParamsConfig(WorkflowConfigElement):
         # Provide a button to add a new parameter
         config.params_container.button(
             "Add Parameter",
-            f"add_parameter.{self.form_ix}",
+            f"add_parameter.{self.workflow_config.form_ix}",
             on_click=self.add_parameter,
             args=(config,)
         )
@@ -1368,7 +1368,7 @@ class OutputConfig(UIElement):
 
     def update_delimeter(self):
         val = st.session_state[
-            f"{self.id}_delimeter_{self.form_ix}"
+            f"{self.id}_delimeter_{self.workflow_config.form_ix}"
         ]
         val = self.delimeters[val]
         if val != self.delimeter:
@@ -1455,7 +1455,7 @@ class OutputConfig(UIElement):
                 "Delimeter",
                 self.delimeters.keys(),
                 list(self.delimeters.values()).index(self.delimeter),
-                key=f"{self.id}_delimeter_{self.form_ix}",
+                key=f"{self.id}_delimeter_{self.workflow_config.form_ix}",
                 on_change=self.update_delimeter
             )
 
@@ -1468,7 +1468,7 @@ class OutputConfig(UIElement):
             # Let the user add a column
             self.expander.button(
                 "Add Column",
-                key=f"add_column_button.{self.id}.{self.form_ix}", # noqa
+                key=f"add_column_button.{self.id}.{self.workflow_config.form_ix}", # noqa
                 on_click=self.add_column
             )
 
@@ -1582,7 +1582,7 @@ class OutputsConfig(WorkflowConfigElement):
         # Button to add an output
         config.outputs_container.button(
             "Add Output File",
-            f"add_output_file_{self.form_ix}",
+            f"add_output_file_{self.workflow_config.form_ix}",
             on_click=self.add_output_file,
             args=(config,)
         )
@@ -1669,8 +1669,6 @@ class WorkflowConfig:
             PreprocessConfig(workflow_config=self),
             ComputeConfig(workflow_config=self),
         ]
-        if st.session_state.get('form_ix') is None:
-            self.form_ix = 0
 
     def save_config(self) -> None:
         """Save a new copy of the config in the session state."""
@@ -1813,7 +1811,7 @@ class WorkflowConfig:
     def reset(self):
 
         # Increment the index used for making unique element IDs
-        st.session_state["form_ix"] = st.session_state.get("form_ix", -1) + 1
+        self.form_ix = self.form_ix + 1
 
         # Populate the form
         self.populate_form()
@@ -1871,7 +1869,7 @@ class WorkflowConfig:
                     f"Download {file_name}",
                     text,
                     file_name=file_name,
-                    key=f"download.{kw}.{st.session_state.get('form_ix', 0)}"
+                    key=f"download.{kw}.{self.form_ix}"
                 )
 
                 # Print the element in the tab
@@ -1882,7 +1880,7 @@ class WorkflowConfig:
             "Download all (ZIP)",
             zip_buffer,
             file_name="cirro-configuration.zip",
-            key=f"download.all.{st.session_state.get('form_ix', 0)}"
+            key=f"download.all.{self.form_ix}"
         )
 
         # If there is any history
@@ -1890,7 +1888,7 @@ class WorkflowConfig:
             # Add the undo button
             self.undo_empty.button(
                 "Undo",
-                key=f"undo.{st.session_state.get('form_ix', 0)}",
+                key=f"undo.{self.form_ix}",
                 on_click=self.undo,
                 use_container_width=True
             )
@@ -1903,7 +1901,7 @@ class WorkflowConfig:
             # Add the redo button
             self.redo_empty.button(
                 "Redo",
-                key=f"redo.{st.session_state.get('form_ix', 0)}",
+                key=f"redo.{self.form_ix}",
                 on_click=self.redo,
                 use_container_width=True
             )
@@ -1995,7 +1993,11 @@ class WorkflowConfig:
 
     @property
     def form_ix(self):
-        return self.form_ix
+        return st.session_state.get("form_ix", 0)
+
+    @form_ix.setter
+    def form_ix(self, value):
+        st.session_state["form_ix"] = value
 
     def parse_example_outputs(self) -> None:
         """
@@ -2008,7 +2010,6 @@ class WorkflowConfig:
         )
 
         # Select a project with the dataset of interest
-        self.form_ix
         proj_key = f"parse_example.select_project.{self.form_ix}"
         self.example_data_expander.selectbox(
             "Cirro Project",
