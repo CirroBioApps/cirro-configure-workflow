@@ -119,8 +119,8 @@ def cirro_login_sub(auth_io: io.StringIO):
     )
 
 
-@session_cache
 @autoretry
+@session_cache
 def list_datasets_in_project(project_name) -> List[str]:
 
     # Connect to Cirro
@@ -133,8 +133,8 @@ def list_datasets_in_project(project_name) -> List[str]:
     return [""] + [ds.name for ds in project.list_datasets()]
 
 
-@session_cache
 @autoretry
+@session_cache
 def list_processes(ingest=False) -> List[str]:
 
     # Connect to Cirro
@@ -157,8 +157,8 @@ def list_processes(ingest=False) -> List[str]:
     return process_list
 
 
-@session_cache
 @autoretry
+@session_cache
 def list_projects() -> List[str]:
 
     # Connect to Cirro
@@ -173,8 +173,8 @@ def list_projects() -> List[str]:
     return project_list
 
 
-@session_cache
 @autoretry
+@session_cache
 def list_references() -> List[DataPortalReference]:
 
     # Connect to Cirro
@@ -192,8 +192,8 @@ def list_references() -> List[DataPortalReference]:
     return reference_list
 
 
-@session_cache
 @autoretry
+@session_cache
 def get_reference_str(ref_name) -> str:
 
     # Connect to Cirro
@@ -208,8 +208,8 @@ def get_reference_str(ref_name) -> str:
             return f"**/{ref.directory}/**/{filename}"
 
 
-@session_cache
 @autoretry
+@session_cache
 def get_dataset(project_name, dataset_name) -> DataPortalDataset:
     """Return a Cirro Dataset object."""
 
