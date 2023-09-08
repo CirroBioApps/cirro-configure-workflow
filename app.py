@@ -323,6 +323,8 @@ class SourceConfig(WorkflowConfigElement):
 
         # Get the updated value
         key = f"{self._id}.{kw}.{config.form_ix}"
+        if key not in st.session_state:
+            return
         val = st.session_state[key]
 
         # If no change has been made
@@ -354,6 +356,8 @@ class SourceConfig(WorkflowConfigElement):
 
     def update_process_list(self, config: 'WorkflowConfig', kw: str):
         key = f"{self._id}.{kw}.{config.form_ix}"
+        if key not in st.session_state:
+            return
         process_list = st.session_state[key]
 
         # Get the process IDs for each process
@@ -1248,6 +1252,9 @@ class OutputMeltConfig(UIElement):
         self,
         kw: str
     ):
+        if self.ui_key(kw) not in st.session_state:
+            return
+
         # Get the value from the input element
         val = st.session_state[self.ui_key(kw)]
 
@@ -1314,6 +1321,10 @@ class OutputColumnConfig(UIElement):
         self,
         kw: str
     ):
+
+        if self.ui_key(kw) not in st.session_state:
+            return
+
         # Get the value from the input element
         val = st.session_state[self.ui_key(kw)]
 
@@ -1410,9 +1421,10 @@ class OutputConfig(UIElement):
         return self.source.replace("/", "_") + ".parquet"
 
     def update_delimeter(self):
-        val = st.session_state[
-            f"{self.id}_delimeter_{self.workflow_config.form_ix}"
-        ]
+        key = f"{self.id}_delimeter_{self.workflow_config.form_ix}"
+        if key not in st.session_state:
+            return
+        val = st.session_state[key]
         val = self.delimeters[val]
         if val != self.delimeter:
             self.delimeter = val
@@ -1536,6 +1548,8 @@ class OutputConfig(UIElement):
         names=dict(),
         transform=None
     ):
+        if self.ui_key(kw) not in st.session_state:
+            return
         # Get the value from the input element
         val = st.session_state[self.ui_key(kw)]
 
