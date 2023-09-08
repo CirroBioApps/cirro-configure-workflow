@@ -1,5 +1,6 @@
 import io
 import json
+import re
 import threading
 from time import sleep
 from typing import Dict, List
@@ -1283,6 +1284,82 @@ class OutputMeltConfig(UIElement):
         )
 
 
+class OutputConcatConfig(UIElement):
+
+    ui_key_prefix = "output_concat"
+
+    def __init__(
+        self,
+        file_ix: int,
+        token: str,
+        name: str,
+        desc: str,
+        workflow_config: 'WorkflowConfig'
+    ):
+        self.id = f"file_{file_ix}_token_{token}"
+        self.workflow_config = workflow_config
+        self.token = token
+        self.name = name
+        self.desc = desc
+
+    def serve(self, expander: DeltaGenerator):
+
+        self.expander = expander
+
+        self.expander.write("---")
+        self.expander.write(
+            f"File Path Token: {self.token}"
+        )
+
+        for kw, title, help in [
+            (
+                "name",
+                "Token Name",
+                "Display name for the information encoded in the token"
+            ),
+            (
+                "desc",
+                "Token Description",
+                "Longer description of information encoded in the token"
+            )
+        ]:
+            self.text_input(
+                value=self.__dict__[kw],
+                kw=kw,
+                title=title,
+                help=help
+            )
+
+    def update_attribute(
+        self,
+        kw: str
+    ):
+        if self.ui_key(kw) not in st.session_state:
+            return
+
+        # Get the value from the input element
+        val = st.session_state[self.ui_key(kw)]
+
+        # If the value is the same
+        if val == self.__dict__.get(kw):
+            # Take no action
+            return
+
+        # If the value is different, update the attribute
+        self.__dict__[kw] = val
+
+        # And then redraw the form (below)
+        self.workflow_config.save_config()
+        self.workflow_config.reset()
+
+    def dump(self) -> dict:
+        return dict(
+            token=self.token,
+            name=self.name,
+            desc=self.desc
+        )
+
+
 class OutputColumnConfig(UIElement):
 
     ui_key_prefix = "output_column"
@@ -1291,6 +1368,7 @@ class OutputColumnConfig(UIElement):
         self.col = col
         self.id = id
         self.workflow_config = workflow_config
+        self.deleted = False
 
     def serve(self, expander: DeltaGenerator):
 
@@ -1316,6 +1394,18 @@ class OutputColumnConfig(UIElement):
                 value=self.col.get(attr["kw"], ""),
                 **attr
             )
+
+        # Button to delete the column information
+        expander.button(
+            "Remove Column",
+            key=self.ui_key("remove_column"),
+            on_click=self.remove
+        )
+
+    def remove(self):
+        self.deleted = True
+        self.workflow_config.save_config()
+        self.workflow_config.reset()
 
     def update_attribute(
         self,
@@ -1347,6 +1437,7 @@ class OutputConfig(UIElement):
     ui_key_prefix = "output"
     source_prefix = "$data_directory/"
     delimeters = dict(Tab="\t", Comma=",")
+    TOKEN_REGEX = r"\[([A-Za-z]+)\]"
 
     def __init__(
         self,
@@ -1400,6 +1491,55 @@ class OutputConfig(UIElement):
                 f"{self.id}.melt",
                 workflow_config
             )
+
+            # Set up the optional concat attributes
+            self.concat = self.parse_concat_tokens()
+
+    @property
+    def tokens(self) -> List[str]:
+        return re.findall(
+            self.TOKEN_REGEX,
+            self.source
+        )
+
+    def parse_concat_tokens(self) -> List[OutputConcatConfig]:
+        """
+        Parse any concat tokens from the source string.
+        If the concat field is already present, use that
+        for the name and description.
+        """
+
+        concat_configs = []
+
+        # If there are no tokens, stop
+        if len(self.tokens) == 0:
+            return concat_configs
+
+        # Key any existing concat name/desc by token
+        existing_spec = {
+            i["token"]: i
+            for i in self.file_config["params"].get("concat", [])
+            if isinstance(i, dict) and "token" in i
+        }
+
+        # Set up an OutputConcatConfig element for each
+        for token in self.tokens:
+            concat_configs.append(
+                OutputConcatConfig(
+                    file_ix=self.id,
+                    token=token,
+                    name=existing_spec.get(token, {}).get("name", token),
+                    desc=existing_spec.get(token, {}).get("desc", token),
+                    workflow_config=self.workflow_config
+                )
+            )
+
+        return concat_configs
+
+    def matches_regex(self, source) -> bool:
+        """Check if the source string matches the provided regex."""
+        regex_path = re.sub(self.TOKEN_REGEX, "(.*)", source)
+        return re.search(regex_path, self.source) is not None
 
     @property
     def command(self) -> str:
@@ -1514,6 +1654,9 @@ class OutputConfig(UIElement):
                 on_change=self.update_delimeter
             )
 
+            for concat in self.concat:
+                concat.serve(self.expander)
+
             for col in self.columns:
                 col.serve(self.expander)
 
@@ -1534,10 +1677,17 @@ class OutputConfig(UIElement):
         """Add a column for the file."""
 
         self.file_config["params"]["cols"].append(dict(
-            col="",
-            name="",
-            desc=""
+            col="New Column",
+            name="New Column",
+            desc="New Column"
         ))
+        self.columns.append(
+            OutputColumnConfig(
+                self.file_config["params"]["cols"][-1],
+                f"{self.id}.col_{len(self.columns)}",
+                self.workflow_config
+            )
+        )
         self.workflow_config.save_config()
         self.workflow_config.reset()
 
@@ -1594,6 +1744,23 @@ class OutputConfig(UIElement):
             elif "melt" in self.file_config:
                 del self.file_config["melt"]
 
+            # Set up the concat syntax
+            if len(self.concat) > 0:
+                self.file_config["concat"] = [
+                    concat.dump()
+                    for concat in self.concat
+                ]
+
+            # Remove any deleted columns
+            self.file_config["params"]["cols"] = [
+                dat
+                for col, dat in zip(
+                    self.columns,
+                    self.file_config["params"]["cols"]
+                )
+                if not col.deleted
+            ]
+
         return self.file_config
 
 
@@ -1610,6 +1777,14 @@ class OutputsConfig(WorkflowConfigElement):
             for file_ix, file_config in enumerate(config["output"].get("commands", [])) # noqa
             if file_config.get("command") in OutputConfig.commands
         ]
+
+        # Filter out any files which are matched by another regex
+        while len(self.matching_regex) > 0:
+            self.outputs = [
+                output
+                for i, output in enumerate(self.outputs)
+                if i not in self.matching_regex
+            ]
 
     def dump(self, config: dict) -> None:
         """
@@ -1662,6 +1837,29 @@ class OutputsConfig(WorkflowConfigElement):
         )
         config.save_config()
         config.reset()
+
+    @property
+    def matching_regex(self) -> List[int]:
+        """Indexes of outputs which do match another output's regex."""
+
+        # Check each output
+        for i, output in enumerate(self.outputs):
+
+            # If there is a regex
+            if len(output.tokens) > 0:
+
+                # Make a list of all outputs which match
+                # the regex (apart from itself)
+                matching = [
+                    j
+                    for j, output2 in enumerate(self.outputs)
+                    if i != j and output2.matches_regex(output.source)
+                ]
+
+                if len(matching) > 0:
+                    return matching
+
+        return []
 
 
 class PreprocessConfig(WorkflowConfigElement):
@@ -1739,17 +1937,20 @@ class WorkflowConfig:
     def save_history(self):
         """Save the current config to history"""
 
+        if "history" not in st.session_state:
+            st.session_state["history"] = []
+
         if (
             st.session_state.get("config") is not None and
-            st.session_state.get("history", [[]])[0] != st.session_state["config"] # noqa
-        ):
-            st.session_state[
-                "history"
-            ] = [
-                st.session_state["config"]
-            ] + st.session_state.get(
-                "history", []
+            (
+                len(st.session_state["history"]) == 0 or
+                st.session_state["history"][0] != st.session_state["config"]
             )
+        ):
+            st.session_state["history"].insert(0, st.session_state["config"])
+
+            # After adding to the history, delete the future
+            st.session_state["future"] = []
 
     def format_config(self) -> dict:
         """Generate a config file based on the app state."""
@@ -1902,7 +2103,7 @@ class WorkflowConfig:
             # Serve the interactivity of the configuration
             element.serve(self)
 
-        self.save_config()
+        # self.save_config()
 
     def populate_downloads(self):
         """Populate the options for downloading files"""
@@ -1977,17 +2178,17 @@ class WorkflowConfig:
     def undo(self):
         """Action performed by the Undo button."""
 
+        # The future is a list
+        if "future" not in st.session_state:
+            st.session_state["future"] = []
+
         # Put the current config in the future
-        st.session_state["future"] = (
-            [st.session_state["config"]] +
-            st.session_state.get("future", [])
+        st.session_state["future"].insert(
+            0, st.session_state["config"]
         )
 
-        # Get the first config from the history
-        old_config = st.session_state["history"].pop()
-
         # Update the current state
-        st.session_state["config"] = old_config
+        st.session_state["config"] = st.session_state["history"].pop(0)
 
         # Reset the display
         self.reset()
@@ -1996,16 +2197,15 @@ class WorkflowConfig:
         """Action performed by the Redo button."""
 
         # Put the current config in the history
-        st.session_state["history"] = (
-            [st.session_state["config"]] +
-            st.session_state.get("history", [])
+        if "history" not in st.session_state:
+            st.session_state["history"] = []
+        st.session_state["history"].insert(
+            0, st.session_state["config"]
         )
 
         # Get the first config from the future
-        old_config = st.session_state["future"].pop()
-
         # Update the current state
-        st.session_state["config"] = old_config
+        st.session_state["config"] = st.session_state["future"].pop(0)
 
         # Reset the display
         self.reset()
@@ -2233,6 +2433,10 @@ class WorkflowConfig:
             for cname in df.columns.values
         ]
 
+        msg = "Expected file to start with data/"
+        assert file_name.startswith('data/'), msg
+        file_name = file_name[len("data/"):]
+
         # Return the specification for this file
         return dict(
             command="hot.Parquet",
@@ -2240,8 +2444,8 @@ class WorkflowConfig:
                 url="",
                 source=f"$data_directory/{file_name}",
                 target=file_name.replace("/", "_") + ".parquet",
-                name=file_name.rsplit("/", 1)[-1],
-                desc=file_name.rsplit("/", 1)[-1],
+                name=file_name.replace("/", "_").rsplit("/", 1)[0],
+                desc=file_name.replace("/", "_").rsplit("/", 1)[0],
                 read_csv=dict(
                     parse=dict(
                         delimeter=delim
