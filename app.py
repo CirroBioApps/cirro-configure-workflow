@@ -11,6 +11,7 @@ from cirro.sdk.dataset import DataPortalDataset
 from cirro.api.auth.oauth_client import ClientAuth
 from cirro.api.config import AppConfig
 from cirro.api.clients.portal import DataPortalClient
+from gql.transport.requests import TransportAlreadyConnected
 import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 from streamlit.runtime.scriptrunner import get_script_run_ctx
@@ -44,6 +45,25 @@ def session_cache(func):
 
         # Return that value
         return st.session_state[cache_key]
+
+    return inner
+
+
+def autoretry(func, retries=15, exception=TransportAlreadyConnected):
+    def inner(*args, **kwargs):
+
+        result = None
+        for i in range(retries):
+            try:
+                result = func(*args, **kwargs)
+            except exception as e:
+                if i == (retries - 1):
+                    raise e
+                else:
+                    sleep(0.1)
+            if result is not None:
+                break
+        return result
 
     return inner
 
@@ -98,10 +118,12 @@ def cirro_login_sub(auth_io: io.StringIO):
     )
 
 
-def list_datasets_in_project(project_name):
+@session_cache
+@autoretry
+def list_datasets_in_project(project_name) -> List[str]:
 
     # Connect to Cirro
-    portal = st.session_state['DataPortal']
+    portal: DataPortal = st.session_state['DataPortal']
 
     # Access the project
     project = portal.get_project_by_name(project_name)
@@ -111,6 +133,7 @@ def list_datasets_in_project(project_name):
 
 
 @session_cache
+@autoretry
 def list_processes(ingest=False) -> List[str]:
 
     # Connect to Cirro
@@ -134,6 +157,7 @@ def list_processes(ingest=False) -> List[str]:
 
 
 @session_cache
+@autoretry
 def list_projects() -> List[str]:
 
     # Connect to Cirro
@@ -149,6 +173,7 @@ def list_projects() -> List[str]:
 
 
 @session_cache
+@autoretry
 def list_references() -> List[DataPortalReference]:
 
     # Connect to Cirro
@@ -166,6 +191,8 @@ def list_references() -> List[DataPortalReference]:
     return reference_list
 
 
+@session_cache
+@autoretry
 def get_reference_str(ref_name) -> str:
 
     # Connect to Cirro
@@ -181,11 +208,12 @@ def get_reference_str(ref_name) -> str:
 
 
 @session_cache
+@autoretry
 def get_dataset(project_name, dataset_name) -> DataPortalDataset:
     """Return a Cirro Dataset object."""
 
     # Connect to Cirro
-    portal = st.session_state['DataPortal']
+    portal: DataPortal = st.session_state['DataPortal']
 
     # Access the project
     project = portal.get_project_by_name(project_name)
@@ -967,6 +995,10 @@ uploaded to their project.
         return 0
 
     def update_attribute(self, kw: str):
+
+        if self.ui_key(kw) not in st.session_state:
+            return
+
         val = st.session_state[self.ui_key(kw)]
 
         # If we are updating the reference type
@@ -2087,6 +2119,10 @@ class WorkflowConfig:
         """Get the files in the dataset which match the provided extensions."""
 
         extensions = st.session_state.get("_file_ext", "").split(",")
+
+        # If no file is selected
+        if st.session_state["_selected_dataset"] == "":
+            return []
 
         return [
             fn
