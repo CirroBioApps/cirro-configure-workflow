@@ -341,6 +341,12 @@ class SourceConfig(WorkflowConfigElement):
         config.save_config()
         config.reset()
 
+    def id_is_unique(self) -> bool:
+        for process in list_processes(ingest=True):
+            if f"({self.id})" in process:
+                return False
+        return True
+
     def serve(self, config: 'WorkflowConfig') -> None:
         """
         Serve the user interaction for modifying the element
@@ -352,6 +358,11 @@ class SourceConfig(WorkflowConfigElement):
             help="Must be all lowercase alphanumeric with dashes",
             **self.input_kwargs(config, "id")
         )
+
+        if not self.id_is_unique():
+            config.form_container.write(
+                "Workflow ID is already in use -- please use another"
+            )
 
         config.form_container.text_input(
             "Workflow Name",
@@ -1948,9 +1959,12 @@ class WorkflowConfig:
     def add_file_uploader(self):
 
         # Let the user upload files
-        upload_files = st.sidebar.expander("Upload Files", expanded=False)
-        upload_files.file_uploader(
+        upload_files = st.sidebar.expander(
             "Upload Configuration Files",
+            expanded=False
+        )
+        upload_files.file_uploader(
+            "Select Files",
             accept_multiple_files=True,
             key="uploaded_files"
         )
