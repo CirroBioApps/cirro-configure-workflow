@@ -1862,6 +1862,14 @@ class WorkflowConfig:
         self.undo_empty = undo_col.empty()
         self.redo_empty = redo_col.empty()
 
+        # Set up a reset button
+        st.sidebar.button(
+            "Refresh",
+            key="refresh_button",
+            on_click=self.reset,
+            help="Simply refresh the display"
+        )
+
         # Populate the form and downloads
         self.reset()
 
