@@ -61,8 +61,8 @@ top-right corner of the window:
 
 #### Transport Already Connected
 
-Q: I'm seeing an error message which says something like "Transport
-already connected", what do I do?
+Q: I'm seeing an error message which says
+"gql.transport.exceptions.TransportAlreadyConnected", what do I do?
 
 A: This seems to happen when user inputs are made in rapid succession.
 Simply refresh the page when you see this error.
