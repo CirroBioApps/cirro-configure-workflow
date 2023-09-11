@@ -707,7 +707,10 @@ class Param(UIElement):
             if self.form_type == "Cirro Reference":
 
                 # Set up the file attribute
-                file_str = f"**/{self.reference_id}/**/{self.reference_file}"
+                reference_file = self.reference_file_display[
+                    self.index_reference_file
+                ]
+                file_str = f"**/{self.reference_id}/**/{reference_file}"
                 self.form_config["file"] = file_str
 
             # All new params will exist at the root level
@@ -922,14 +925,16 @@ uploaded to their project.
                     help="Select the reference data type to use"
                 )
 
-                # Select the reference file to choose from
-                self.dropdown(
-                    "reference_file",
-                    "Reference File",
-                    self.reference_file_display,
-                    self.index_reference_file,
-                    help="Select the specific file from the reference data"
-                )
+                # If there are multiple reference files available
+                if len(self.reference_file_display) > 1:
+                    # Select the reference file to choose from
+                    self.dropdown(
+                        "reference_file",
+                        "Reference File",
+                        self.reference_file_display,
+                        self.index_reference_file,
+                        help="Select the specific file from the reference data"
+                    )
 
         # Just a value
         elif self.input_type == "Hardcoded Value":
