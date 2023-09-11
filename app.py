@@ -2370,8 +2370,12 @@ class WorkflowConfig:
 
         extensions = st.session_state.get("_file_ext", "").split(",")
 
-        # If no file is selected
-        if st.session_state["_selected_dataset"] == "":
+        # If no project is selected
+        if st.session_state.get("_selected_project", "") == "":
+            return []
+
+        # If no dataset is selected
+        if st.session_state.get("_selected_dataset", "") == "":
             return []
 
         return [
@@ -2386,17 +2390,25 @@ class WorkflowConfig:
             )
         ]
 
-    def parse_example_dataset(self, file_list):
+    def parse_example_dataset(self, file_list) -> None:
         """Parse the files from the dataset."""
 
         if len(file_list) == 0:
             st.session_state["_parse_examples_msg"] = "No files found to parse"
             return
 
+        # If no project is selected
+        if st.session_state.get("_selected_project", "") == "":
+            return
+
+        # If no dataset is selected
+        if st.session_state.get("_selected_dataset", "") == "":
+            return
+
         # Get the dataset
         ds = get_dataset(
-                st.session_state["_selected_project"],
-                st.session_state["_selected_dataset"]
+            st.session_state["_selected_project"],
+            st.session_state["_selected_dataset"]
         )
 
         # Parse the list of terms (if not already cached)
