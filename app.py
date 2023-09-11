@@ -302,10 +302,19 @@ class SourceConfig(WorkflowConfigElement):
     def load(self, config: dict) -> None:
 
         for kw, default in self.root_kwargs.items():
-            self.__dict__[kw] = config[self._id].get(kw, default)
+            self.__dict__[kw] = (
+                config
+                .get(self._id, dict())
+                .get(kw, default)
+            )
 
         for kw, default in self.code_kwargs.items():
-            self.__dict__[kw] = config[self._id]["code"].get(kw, default)
+            self.__dict__[kw] = (
+                config
+                .get(self._id, dict())
+                .get("code", dict())
+                .get(kw, default)
+            )
 
     def dump(self, config: dict) -> None:
         """
@@ -394,7 +403,7 @@ class SourceConfig(WorkflowConfigElement):
 
         if not self.id_is_unique():
             config.form_container.write(
-                "Workflow ID is already in use -- please use another"
+                "Workflow ID is currently used in Cirro"
             )
 
         config.form_container.text_input(
@@ -1162,6 +1171,8 @@ class ParamsConfig(WorkflowConfigElement):
         self.params = []
 
         # Load params based on their being listed in the form
+        assert "input" in config, json.dumps(config, indent=4)
+
         for kw in config["input"].keys():
 
             # Set up a param object for this keyword value
@@ -1957,22 +1968,29 @@ class WorkflowConfig:
             # After adding to the history, delete the future
             st.session_state["future"] = []
 
-    def format_config(self) -> dict:
-        """Generate a config file based on the app state."""
+    def empty_config(self) -> dict:
+        """Return an empty copy of the config."""
 
         # Make a blank copy
         config = {
             kw: default
             for kw, default in [
-                ("dynamo", dict()), 
-                ("form", dict(form=dict(), ui=dict())), 
-                ("input", dict()), 
-                ("output", dict()), 
-                ("compute", ""), 
+                ("dynamo", dict()),
+                ("form", dict(form=dict(), ui=dict())),
+                ("input", dict()),
+                ("output", dict()),
+                ("compute", ""),
                 ("preprocess", "")
             ]
         }
         config["dynamo"]["code"] = dict()
+        return config
+
+    def format_config(self) -> dict:
+        """Generate a config file based on the app state."""
+
+        # Make a blank copy
+        config = self.empty_config()
 
         # Populate the config based on the state of the form
         for element in self.elements:
@@ -2239,25 +2257,26 @@ class WorkflowConfig:
 
         # If the config has not been initialized, set up an empty dict
         if config is None:
-            config = dict()
+            config = self.empty_config()
 
         # Keep track of whether any modifications have taken place
         modified = False
 
         for file in st.session_state.get("uploaded_files", []):
+            msg = f"Did not expect input: {file.name}"
             if not file.name.startswith("process-"):
-                if file.name == "preprocess.py":
-                    config["preprocess"] = file.read().decode()
-                    modified = True
+                assert file.name == "preprocess.py", msg
+                config["preprocess"] = file.read().decode()
+                modified = True
             elif file.name == "process-compute.config":
                 config["compute"] = file.read().decode()
                 modified = True
             else:
                 if file.name.endswith(".json"):
                     key = file.name[len("process-"):-(len(".json"))]
-                    if key in config:
-                        config[key] = json.load(file)
-                        modified = True
+                    assert key in ["dynamo", "form", "input", "output"], msg
+                    config[key] = json.load(file)
+                    modified = True
 
         if modified:
 
