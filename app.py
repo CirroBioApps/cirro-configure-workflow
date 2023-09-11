@@ -2454,7 +2454,7 @@ class WorkflowConfig:
                 pass
 
             # If there is a single column, we assume it was not successful
-            if df.shape[1] <= 1:
+            if df is not None and df.shape[1] <= 1:
                 df = None
 
             if df is not None:
