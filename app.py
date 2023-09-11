@@ -2236,8 +2236,12 @@ class WorkflowConfig:
         """Load configuration from uploaded files."""
         # Get the configuration from the session state
         config = st.session_state.get("config")
+
+        # If the config has not been initialized, set up an empty dict
         if config is None:
-            return
+            config = dict()
+
+        # Keep track of whether any modifications have taken place
         modified = False
 
         for file in st.session_state.get("uploaded_files", []):
