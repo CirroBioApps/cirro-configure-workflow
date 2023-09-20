@@ -295,7 +295,7 @@ class SourceConfig(WorkflowConfigElement):
         self.code_kwargs = {
             "repository": "GITHUBPUBLIC",
             "script": "main.nf",
-            "uri": "org/repo",
+            "uri": "organization/repository_name",
             "version": "main"
         }
 
@@ -416,7 +416,7 @@ class SourceConfig(WorkflowConfigElement):
         config.form_container.text_input(
             "Workflow Description",
             value=self.desc,
-            help="Longer description providing more details on the workflow (8-15 words)", # noqa
+            help="Longer description providing more details on the workflow (8-15 words)",  # noqa
             **self.input_kwargs(config, "desc")
         )
 
@@ -428,30 +428,31 @@ class SourceConfig(WorkflowConfigElement):
         ).upper()
 
         config.form_container.text_input(
-            "Workflow Repository (GitHub)",
-            help="For private workflows, make sure to [install the CirroBio app](https://github.com/apps/cirro-data-portal) to provide access", # noqa
+            "Workflow Repository Path",
+            help="Path to workflow's GitHub repository formatted as organization/repository",
             value=self.uri,
             **self.input_kwargs(config, "uri")
         )
 
         config.form_container.text_input(
-            "Workflow Entrypoint",
+            "Workflow Entrypoint Script",
             value=self.script,
             help="Script from the repository used to launch the workflow",
             **self.input_kwargs(config, "script")
         )
 
         config.form_container.text_input(
-            "Repository Version",
+            "Repository's Default Branch",
             value=self.version,
-            help="Supports branch names, commits, tags, and releases.",
+            help="Often 'main'; supports commits, tags, and releases.",
             **self.input_kwargs(config, "version")
         )
 
         config.form_container.selectbox(
-            "Public / Private",
+            "Public or Private GitHub Repository",
             ["GITHUBPUBLIC", "GITHUBPRIVATE"],
             ["GITHUBPUBLIC", "GITHUBPRIVATE"].index(self.repository),
+            format_func=lambda x: x.replace('GITHUB', '').title(),
             help="Supports branch names, commits, tags, and releases.",
             **self.input_kwargs(config, "repository")
         )
@@ -462,24 +463,24 @@ the [Cirro Data Portal App](https://github.com/apps/cirro-data-portal).
 """)
 
         config.form_container.multiselect(
-            "Parent Processes",
+            "Processes with outputs that can be used as inputs to this workflow",
             list_processes(ingest=True),
             [
                 process for process in list_processes(ingest=True)
                 if self.get_process_id(process) in self.parentProcessIds
             ],
-            help="Datasets produced by parent processes can be used as inputs to run this workflow", # noqa
+            help="Select processes which produce outputs that can be used as inputs when running this workflow",  # noqa
             **self.input_process_kwargs(config, "parentProcessIds")
         )
 
         config.form_container.multiselect(
-            "Child Processes",
+            "Processes that can use this workflow's outputs as inputs",
             list_processes(),
             [
                 process for process in list_processes()
                 if self.get_process_id(process) in self.childProcessIds
             ],
-            help="Child processes can be run on the datasets produced as outputs by this workflow", # noqa
+            help="Select processes which can be run on the output datasets produced by this workflow",  # noqa
             **self.input_process_kwargs(config, "childProcessIds")
         )
 
@@ -493,7 +494,7 @@ class UIElement:
     workflow_config: 'WorkflowConfig'
 
     def ui_key(self, kw: str):
-        return f"{self.ui_key_prefix}.{self.id}.{kw}.{self.workflow_config.form_ix}" # noqa
+        return f"{self.ui_key_prefix}.{self.id}.{kw}.{self.workflow_config.form_ix}"  # noqa
 
     def remove(self):
         """Remove this param from the inputs."""
@@ -565,6 +566,14 @@ class Param(UIElement):
         "Input Directory",
         "Output Directory"
     ]
+
+    input_type_descriptions = {
+        "Dataset Name": "The parameter will be populated with the name of the new dataset which was provided by the user.",
+        "Form Entry": "The parameter will be set by the user using a form.",
+        "Hardcoded Value": "The parameter will be a hard-coded value.",
+        "Input Directory": "The parameter will be populated with the base URL of the files which make up the contents of the input dataset.",
+        "Output Directory": "The parameter will be populated with the base URL of the dataset which will be created with the outputs of this workflow."
+    }
 
     input_type_values = {
         "Output Directory": "$.params.dataset.s3|/data/",
@@ -764,42 +773,19 @@ class Param(UIElement):
             "id",
             "Parameter ID",
             self.id,
-            help="Key used to identify the paramter value to the workflow"
+            help="A unique key (with no spaces) used to identify the parameter"
         )
 
         # Set up a drop-down for the input type
         self.dropdown(
             "input_type",
-            "Input Type",
+            "Parameter Type",
             self.input_type_options,
-            help="Select the way in which the value of the parameter is set",
+            help="Select the way in which the user will set the parameter's value",
             index=self.input_type_options.index(self.input_type)
         )
-
-        if self.input_type == "Dataset Name":
-            self.expander.write("""
-The parameter will be populated with the name of the new dataset
-which was provided by the user.
-""")
-
-        elif self.input_type == "Input Directory":
-            self.expander.write("""
-The parameter will be populated with the base URL of the files
-which make up the contents of the input dataset.
-""")
-
-        elif self.input_type == "Output Directory":
-            self.expander.write("""
-The parameter will be populated with the base URL of the dataset
-which will be created with the outputs of this workflow.
-""")
-
-        elif self.input_type == "Form Entry":
-
-            self.expander.write(
-                "The parameter will be set by the user using a form."
-            )
-
+        self.expander.write(self.input_type_descriptions[self.input_type])
+        if self.input_type == "Form Entry":
             # Let the user set up the title and description
             self.text_input(
                 "form.title",
@@ -820,11 +806,16 @@ which will be created with the outputs of this workflow.
                 "Form Entry Type",
                 self.form_type_options,
                 self.form_type_options.index(self.form_type),
-                help="Select the type of form entry element shown to the user"
+                help="Select the type of form element shown to the user to enter data"
             )
 
             # User-provided value (vanilla react form element)
             if self.form_type == "User-Provided Value":
+
+                self.expander.write("""
+The user will enter their own value which must adhere to the 
+required type.
+""")
 
                 self.dropdown(
                     "form.type",
@@ -889,22 +880,23 @@ the files in that dataset.
                     "Select Dataset of Type:",
                     list_processes(ingest=True),
                     self.index_process_type,
-                    help="Only datasets of a particular type will be shown to the user" # noqa
+                    help="Only datasets of this particular type will be shown to the user"  # noqa
                 )
 
             # Select a file from the input dataset
             elif self.form_type == "Input File":
 
                 self.expander.write("""
-The user will select one (or more) files from the input dataset,
-optionally filtering based on filename using a wildcard glob.
+The user will select one (or more) files from either the entire
+input dataset or a subset as defined by a pattern filter using
+wildcards.
 """)
 
                 self.text_input(
                     "form.file",
-                    "File Pattern Filter",
+                    "Filter Available Files with Pattern",
                     self.form_config.get("file", "**/*"),
-                    help="Subset the files to select from which match the wildcard glob" # noqa
+                    help="Subset the files the user can select from which match the wildcard glob"  # noqa
                 )
                 self.dropdown(
                     "form.multiple",
@@ -931,7 +923,7 @@ uploaded to their project.
                     "Reference Type",
                     self.reference_list_display,
                     self.index_reference_type,
-                    help="Select the reference data type to use"
+                    help="Select the type of reference data the user must choose from"
                 )
 
                 # If there are multiple reference files available
@@ -1452,7 +1444,7 @@ class OutputConfig(UIElement):
     commands = ["hot.Parquet"]
     ui_key_prefix = "output"
     source_prefix = "$data_directory/"
-    delimeters = dict(Tab="\t", Comma=",")
+    delimiters = dict(Tab="\t", Comma=",")
     TOKEN_REGEX = r"\[([A-Za-z]+)\]"
 
     def __init__(
@@ -1480,13 +1472,13 @@ class OutputConfig(UIElement):
             if "name" not in self.file_config["params"]:
                 self.file_config["params"]["name"] = "Output File"
 
-            # Set up the delimeter as a self attribute
-            self.delimeter = self.file_config["params"].get(
+            # Set up the delimiter as a self attribute
+            self.delimiter = self.file_config["params"].get(
                 "read_csv", {}
             ).get(
                 "parse", {}
             ).get(
-                "delimeter", ","
+                "delimiter", ","
             )
 
             # Set up the column attributes
@@ -1576,14 +1568,14 @@ class OutputConfig(UIElement):
         """Format the target based on the file path."""
         return self.source.replace("/", "_") + ".parquet"
 
-    def update_delimeter(self):
-        key = f"{self.id}_delimeter_{self.workflow_config.form_ix}"
+    def update_delimiter(self):
+        key = f"{self.id}_delimiter_{self.workflow_config.form_ix}"
         if key not in st.session_state:
             return
         val = st.session_state[key]
-        val = self.delimeters[val]
-        if val != self.delimeter:
-            self.delimeter = val
+        val = self.delimiters[val]
+        if val != self.delimiter:
+            self.delimiter = val
             self.workflow_config.save_config()
             self.workflow_config.reset()
 
@@ -1598,7 +1590,7 @@ class OutputConfig(UIElement):
 
         # Select the command type
         enum = ["hot.Parquet"]
-        enumNames = ["Delimeter-Separated Values (CSV, TSV, etc.)"]
+        enumNames = ["Delimiter-Separated Values (CSV, TSV, etc.)"]
         self.dropdown(
             "command",
             "Data Encoding",
@@ -1618,13 +1610,13 @@ class OutputConfig(UIElement):
                     kw="name",
                     title="Display Name",
                     value=self.name,
-                    help="Name of dataset presented to the user in Cirro"
+                    help="Name of file presented to the user in Cirro"
                 ),
                 dict(
                     kw="desc",
                     title="Description",
                     value=self.file_config["params"].get("desc", ""),
-                    help="Full description of dataset persented in Cirro"
+                    help="Full description of file presented in Cirro"
                 ),
                 dict(
                     kw="source",
@@ -1632,13 +1624,13 @@ class OutputConfig(UIElement):
                     value=self.source,
                     help="File location within the output directory",
                     kwargs=dict(
-                        transform=lambda v: f"{self.source_prefix}{v.strip('/')}" # noqa
+                        transform=lambda v: f"{self.source_prefix}{v.strip('/')}"  # noqa
                     )
                 ),
                 dict(
                     kw="url",
                     title="Documentation URL (optional)",
-                    help="Optionally provide a webpage documenting dataset contents", # noqa
+                    help="Optionally provide a webpage documenting file contents",  # noqa
                     value=self.file_config["params"].get("url", "")
                 )
             ]:
@@ -1661,13 +1653,14 @@ class OutputConfig(UIElement):
                             f"Missing: Please provide {attr['title'].lower()}"
                         )
 
-            # Set up a dropdown for the delimeter selection
+            # Set up a dropdown for the delimiter selection
             self.expander.selectbox(
-                "Delimeter",
-                self.delimeters.keys(),
-                list(self.delimeters.values()).index(self.delimeter),
-                key=f"{self.id}_delimeter_{self.workflow_config.form_ix}",
-                on_change=self.update_delimeter
+                "Delimiter",
+                self.delimiters.keys(),
+                list(self.delimiters.values()).index(self.delimiter),
+                key=f"{self.id}_delimiter_{self.workflow_config.form_ix}",
+                on_change=self.update_delimiter,
+                help="How the values are separated in the file"
             )
 
             for concat in self.concat:
@@ -1676,15 +1669,15 @@ class OutputConfig(UIElement):
             for col in self.columns:
                 col.serve(self.expander)
 
-            if len(self.columns) == 0:
-                self.expander.write("Missing: Please define file columns")
-
             # Let the user add a column
             self.expander.button(
                 "Add Column",
-                key=f"add_column_button.{self.id}.{self.workflow_config.form_ix}", # noqa
+                key=f"add_column_button.{self.id}.{self.workflow_config.form_ix}",  # noqa
                 on_click=self.add_column
             )
+
+            if len(self.columns) == 0:
+                self.expander.write("Missing: Please define file columns")
 
             # Set up the user inputs to drive the melt command
             self.melt.serve(self.expander)
@@ -1748,10 +1741,10 @@ class OutputConfig(UIElement):
         if self.command == "hot.Parquet":
             # Set up the target kw
             self.file_config["params"]["target"] = self.target
-            # Set up the delimeter
+            # Set up the delimiter
             self.file_config["params"]["read_csv"] = dict(
                 parse=dict(
-                    delimeter=self.delimeter
+                    delimiter=self.delimiter
                 )
             )
             # Set up the melt syntax
@@ -1790,7 +1783,7 @@ class OutputsConfig(WorkflowConfigElement):
 
         self.outputs: List[OutputConfig] = [
             OutputConfig(file_config, file_ix, self.workflow_config)
-            for file_ix, file_config in enumerate(config["output"].get("commands", [])) # noqa
+            for file_ix, file_config in enumerate(config["output"].get("commands", []))  # noqa
             if file_config.get("command") in OutputConfig.commands
         ]
 
@@ -2145,7 +2138,7 @@ class WorkflowConfig:
                 file_name = f"{prefix}{kw}.{ext}"
 
                 # Format the text of the element
-                text = val if isinstance(val, str) else json.dumps(val, indent=4, sort_keys=True) # noqa
+                text = val if isinstance(val, str) else json.dumps(val, indent=4, sort_keys=True)  # noqa
 
                 # Add to the zip file
                 zip_file.writestr(file_name, text)
@@ -2166,7 +2159,7 @@ class WorkflowConfig:
 
         # Let the user download all files as a zip
         self.download_all_empty.download_button(
-            "Download all (ZIP)",
+            "Download All Config Files (.zip)",
             zip_buffer,
             file_name="cirro-configuration.zip",
             key=f"download.all.{self.form_ix}"
@@ -2301,7 +2294,7 @@ class WorkflowConfig:
         """
 
         self.example_data_expander = st.sidebar.expander(
-            "Parse Example Outputs",
+            "Populate Outputs from Existing Dataset",
             expanded=False
         )
 
@@ -2353,9 +2346,9 @@ class WorkflowConfig:
             file_list = self.get_files_in_dataset()
 
             self.example_data_expander.button(
-                f"Parse Files (n={len(file_list):,})",
+                f"Populate from {len(file_list)} Files",
                 key="parse_example.execute",
-                help="Read through the indicated dataset and parse all available files", # noqa
+                help="Read through the indicated dataset and parse all available files",  # noqa
                 on_click=self.parse_example_dataset,
                 args=(file_list,)
             )
@@ -2441,7 +2434,7 @@ class WorkflowConfig:
         self.reset()
 
     def parse_example_file(self, ds: DataPortalDataset, file_name: str):
-        # Try to read the table, checking for the different delimeters
+        # Try to read the table, checking for the different delimiters
         df = None
         for delim in ["\t", ","] if "tsv" in file_name else [",", "\t"]:
 
@@ -2450,7 +2443,7 @@ class WorkflowConfig:
                     sep=delim,
                     nrows=5
                 )
-            except ValueError as e: # noqa
+            except ValueError as e:  # noqa
                 pass
 
             # If there is a single column, we assume it was not successful
@@ -2488,7 +2481,7 @@ class WorkflowConfig:
                 desc=file_name.replace("/", "_").rsplit("/", 1)[0],
                 read_csv=dict(
                     parse=dict(
-                        delimeter=delim
+                        delimiter=delim
                     )
                 ),
                 cols=cols
@@ -2509,7 +2502,7 @@ class WorkflowConfig:
                 for meta in term["metadata"][::-1]:
                     # If the file name matches (or if we get to the wild-card)
                     if (
-                        file_name.replace("data/", "") == meta["file"].replace("data/", "") # noqa
+                        file_name.replace("data/", "") == meta["file"].replace("data/", "")  # noqa
                         or meta["file"] == "*"
                     ):
                         # Return the name and description
