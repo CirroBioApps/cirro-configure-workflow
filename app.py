@@ -463,7 +463,7 @@ the [Cirro Data Portal App](https://github.com/apps/cirro-data-portal).
 """)
 
         config.form_container.multiselect(
-            "Processes with outputs can be used as inputs to this workflow",
+            "Processes with outputs that can be used as inputs to this workflow",
             list_processes(ingest=True),
             [
                 process for process in list_processes(ingest=True)
