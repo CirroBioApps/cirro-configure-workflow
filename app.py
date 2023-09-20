@@ -2159,7 +2159,7 @@ class WorkflowConfig:
 
         # Let the user download all files as a zip
         self.download_all_empty.download_button(
-            "Download all (ZIP)",
+            "Download All Config Files (.zip)",
             zip_buffer,
             file_name="cirro-configuration.zip",
             key=f"download.all.{self.form_ix}"
@@ -2294,7 +2294,7 @@ class WorkflowConfig:
         """
 
         self.example_data_expander = st.sidebar.expander(
-            "Parse Example Outputs",
+            "Populate Outputs from Existing Dataset",
             expanded=False
         )
 
@@ -2346,7 +2346,7 @@ class WorkflowConfig:
             file_list = self.get_files_in_dataset()
 
             self.example_data_expander.button(
-                f"Parse Files (n={len(file_list):,})",
+                f"Populate from {len(file_list)} Files",
                 key="parse_example.execute",
                 help="Read through the indicated dataset and parse all available files",  # noqa
                 on_click=self.parse_example_dataset,
