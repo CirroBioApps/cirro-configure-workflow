@@ -442,9 +442,9 @@ class SourceConfig(WorkflowConfigElement):
         )
 
         config.form_container.text_input(
-            "Repository's Default Branch",
+            "Repository Branch / Version",
             value=self.version,
-            help="Often 'main'; supports commits, tags, and releases.",
+            help="Often 'main' (branch), but also supports commits, tags, and releases.",
             **self.input_kwargs(config, "version")
         )
 
