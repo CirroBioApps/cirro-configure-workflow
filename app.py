@@ -1107,7 +1107,7 @@ uploaded to their project.
         """Change the form input type."""
 
         # Get the form element
-        form_element = self.form_elements[
+        form_element: dict = self.form_elements[
             ".".join(self.form_key)
         ]
         form_element["type"] = "string"
@@ -1130,6 +1130,9 @@ uploaded to their project.
                 form_element["pathType"] = "dataset"
                 # Use the process attribute
                 form_element["process"] = "paired_dnaseq"
+                # Remove the "file" attribute, if any
+                if "file" in form_element:
+                    del form_element["file"]
 
             # Select a file from the input dataset
             elif val == "Input File":
@@ -1138,6 +1141,9 @@ uploaded to their project.
                 form_element["pathType"] = "dataset"
                 # Use the file attribute
                 form_element["file"] = "**/*"
+                # Remove the "process" attribute, if any
+                if "process" in form_element:
+                    del form_element["process"]
 
             # Select a reference object
             else:
