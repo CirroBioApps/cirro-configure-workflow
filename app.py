@@ -22,6 +22,10 @@ from streamlit.runtime.scriptrunner import script_run_context
 def session_cache(func):
     def inner(*args, **kwargs):
 
+        # If login information has not been setup, skip this
+        if st.session_state.get("DataPortal") is None:
+            return
+
         # Get the session context, which has a unique ID element
         ctx = get_script_run_ctx()
 
@@ -71,7 +75,7 @@ def autoretry(func, retries=15, exception=TransportAlreadyConnected):
 
 def cirro_login(login_empty: DeltaGenerator):
     # If we have not logged in yet
-    if st.session_state.get('DataPortal') is None:
+    while st.session_state.get('DataPortal') is None:
 
         # Connect to Cirro - capturing the login URL
         auth_io = io.StringIO()
