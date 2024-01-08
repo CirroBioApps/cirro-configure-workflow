@@ -91,12 +91,7 @@ def cirro_login(login_empty: DeltaGenerator):
 
         login_empty.write(login_string)
         cirro_login_thread.join()
-
-    else:
         login_empty.empty()
-
-    msg = "Error: Could not log in to Cirro"
-    assert st.session_state.get('DataPortal') is not None, msg
 
 
 def cirro_login_sub(auth_io: io.StringIO):
