@@ -19,6 +19,15 @@ from streamlit.runtime.scriptrunner import get_script_run_ctx
 from streamlit.runtime.scriptrunner import script_run_context
 
 
+def get_portal():
+
+    # If login information has not been setup, skip this
+    if st.session_state.get("DataPortal") is None:
+        cirro_login(login_empty)
+
+    return st.session_state["DataPortal"]
+
+
 def session_cache(func):
     def inner(*args, **kwargs):
 
@@ -123,7 +132,7 @@ def cirro_login_sub(auth_io: io.StringIO):
 def list_datasets_in_project(project_name) -> List[str]:
 
     # Connect to Cirro
-    portal: DataPortal = st.session_state['DataPortal']
+    portal: DataPortal = get_portal()
 
     # Access the project
     project = portal.get_project_by_name(project_name)
@@ -137,7 +146,7 @@ def list_datasets_in_project(project_name) -> List[str]:
 def list_processes(ingest=False) -> List[str]:
 
     # Connect to Cirro
-    portal: DataPortal = st.session_state['DataPortal']
+    portal: DataPortal = get_portal()
 
     # List the projects available
     process_list: List[DataPortalProcess] = portal.list_processes(
@@ -161,7 +170,7 @@ def list_processes(ingest=False) -> List[str]:
 def list_projects() -> List[str]:
 
     # Connect to Cirro
-    portal: DataPortal = st.session_state['DataPortal']
+    portal: DataPortal = get_portal()
 
     # List the projects available
     project_list = portal.list_projects()
@@ -177,7 +186,7 @@ def list_projects() -> List[str]:
 def list_references() -> List[DataPortalReference]:
 
     # Connect to Cirro
-    portal: DataPortal = st.session_state['DataPortal']
+    portal: DataPortal = get_portal()
 
     # List the references available
     reference_list: List[DataPortalReference] = portal.list_reference_types()
@@ -196,7 +205,7 @@ def list_references() -> List[DataPortalReference]:
 def get_reference_str(ref_name) -> str:
 
     # Connect to Cirro
-    portal: DataPortal = st.session_state['DataPortal']
+    portal: DataPortal = get_portal()
 
     for ref in portal.list_reference_types():
         if ref.name == ref_name:
@@ -213,7 +222,7 @@ def get_dataset(project_name, dataset_name) -> DataPortalDataset:
     """Return a Cirro Dataset object."""
 
     # Connect to Cirro
-    portal: DataPortal = st.session_state['DataPortal']
+    portal: DataPortal = get_portal()
 
     # Access the project
     project = portal.get_project_by_name(project_name)
