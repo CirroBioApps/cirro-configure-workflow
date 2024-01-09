@@ -2305,6 +2305,7 @@ class WorkflowConfig:
         """
         Let the user parse a set of output files from an existing dataset.
         """
+        cirro_login(self.login_empty)
 
         self.example_data_expander = st.sidebar.expander(
             "Populate Outputs from Existing Dataset",
