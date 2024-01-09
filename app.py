@@ -75,7 +75,7 @@ def autoretry(func, retries=15, exception=TransportAlreadyConnected):
 
 def cirro_login(login_empty: DeltaGenerator):
     # If we have not logged in yet
-    while st.session_state.get('DataPortal') is None:
+    if st.session_state.get('DataPortal') is None:
 
         # Connect to Cirro - capturing the login URL
         auth_io = io.StringIO()
@@ -392,6 +392,7 @@ class SourceConfig(WorkflowConfigElement):
         """
         Serve the user interaction for modifying the element
         """
+        cirro_login(config.login_empty)
 
         config.form_container.text_input(
             "Workflow ID",
@@ -761,6 +762,8 @@ class Param(UIElement):
         workflow_config["input"][self.id] = self.value
 
     def serve(self, config: 'WorkflowConfig'):
+        cirro_login(config.login_empty)
+
         # Set up an expander for this parameter
         self.expander = config.params_container.expander(
             f"Input Parameter: '{self.id}'",
@@ -1190,6 +1193,8 @@ class ParamsConfig(WorkflowConfigElement):
         """
         Serve the user interaction for modifying the element
         """
+        cirro_login(config.login_empty)
+
         for param in self.params:
             param.serve(config)
 
@@ -1586,6 +1591,7 @@ class OutputConfig(UIElement):
 
     def serve(self, config: 'WorkflowConfig'):
         """Serve the user interaction for this output file."""
+        cirro_login(config.login_empty)
 
         # Set up an expander for this element
         self.expander = config.outputs_container.expander(
@@ -1822,6 +1828,8 @@ class OutputsConfig(WorkflowConfigElement):
         """
         Serve the user interaction for modifying each output file.
         """
+        cirro_login(config.login_empty)
+    
         for output_file in self.outputs:
             output_file.serve(config)
 
@@ -1926,6 +1934,7 @@ class WorkflowConfig:
     """Workflow configuration object."""
 
     elements: List[WorkflowConfigElement]
+    login_empty: DeltaGenerator
 
     def __init__(self):
 
@@ -2030,9 +2039,8 @@ class WorkflowConfig:
         st.header("Cirro - Workflow Configuration")
 
         # Log in to Cirro
-        login_empty = st.empty()
-        cirro_login(login_empty)
-        login_empty.empty()
+        self.login_empty = st.empty()
+        cirro_login(self.login_empty)
 
         # Set up tabs for the form and all generated elements
         tab_names = [
@@ -2366,6 +2374,8 @@ class WorkflowConfig:
     def get_files_in_dataset(self) -> List[str]:
         """Get the files in the dataset which match the provided extensions."""
 
+        cirro_login(self.login_empty)
+
         extensions = st.session_state.get("_file_ext", "").split(",")
 
         # If no project is selected
@@ -2390,6 +2400,8 @@ class WorkflowConfig:
 
     def parse_example_dataset(self, file_list) -> None:
         """Parse the files from the dataset."""
+
+        cirro_login(self.login_empty)
 
         if len(file_list) == 0:
             st.session_state["_parse_examples_msg"] = "No files found to parse"
@@ -2439,6 +2451,9 @@ class WorkflowConfig:
         self.reset()
 
     def parse_example_file(self, ds: DataPortalDataset, file_name: str):
+
+        cirro_login(self.login_empty)
+
         # Try to read the table, checking for the different delimiters
         df = None
         for delim in ["\t", ","] if "tsv" in file_name else [",", "\t"]:
