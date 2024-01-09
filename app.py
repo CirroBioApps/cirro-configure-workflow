@@ -2093,6 +2093,13 @@ class WorkflowConfig:
             help="Simply refresh the display"
         )
 
+        # Set up a logout button
+        st.sidebar.button(
+            "Logout",
+            key="logout_button",
+            on_click=self.logout
+        )
+
         # Populate the form and downloads
         self.reset()
 
@@ -2106,6 +2113,10 @@ class WorkflowConfig:
 
         # Set up the download options
         self.populate_downloads()
+
+    @staticmethod
+    def logout():
+        st.session_state.clear()
 
     def populate_form(self):
         """Generate the form based on the configuration elements."""
