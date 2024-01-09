@@ -25,6 +25,9 @@ def get_portal():
     if st.session_state.get("DataPortal") is None:
         cirro_login(login_empty)
 
+    msg = "Error encountered logging in"
+    assert st.session_state.get("DataPortal") is not None, msg
+
     return st.session_state["DataPortal"]
 
 
