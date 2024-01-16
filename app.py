@@ -2432,6 +2432,9 @@ class WorkflowConfig:
         # Save the previous version
         self.save_history()
 
+        if "config" not in st.session_state:
+            st.session_state["config"] = self.format_config()
+
         # Replace the existing output spec
         st.session_state["config"]["output"] = dict(commands=[])
 
