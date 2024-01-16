@@ -2519,23 +2519,30 @@ class WorkflowConfig:
             return
         st.session_state["_terms"] = json.load(open("terms.json"))
 
-    def infer_column_name(self, cname, file_name):
+    def infer_column_name(self, cname: str, file_name: str):
         """Return the pre-defined name and description, if any."""
 
-        for term in st.session_state["_terms"].values():
-            if cname in term["column"]:
-                # Iterate through the defined metadata in reverse order
-                for meta in term["metadata"][::-1]:
-                    # If the file name matches (or if we get to the wild-card)
-                    if (
-                        file_name.replace("data/", "") == meta["file"].replace("data/", "")  # noqa
-                        or meta["file"] == "*"
-                    ):
-                        # Return the name and description
-                        return dict(
-                            name=meta["name"],
-                            desc=meta["desc"]
-                        )
+        # Sanitize the column name before checking against the set of
+        # predefined terms
+        cname = re.sub('[^0-9a-zA-Z]+', '_', cname.lower().strip()).strip("_")
+        while "__" in cname:
+            cname = cname.replace("__", "_")
+
+        # Check the set of predefined terms
+        term: dict = st.session_state["_terms"].get(cname, {})
+
+        # Iterate through the defined metadata in reverse order
+        for meta in term.get("metadata", [])[::-1]:
+            # If the file name matches (or if we get to the wild-card)
+            if (
+                file_name.replace("data/", "") == meta["file"].replace("data/", "")  # noqa
+                or meta["file"] == "*"
+            ):
+                # Return the name and description
+                return dict(
+                    name=meta["name"],
+                    desc=meta["desc"]
+                )
 
         # If there is no match
         return dict(
