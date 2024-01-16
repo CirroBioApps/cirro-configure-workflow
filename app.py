@@ -2117,9 +2117,11 @@ class WorkflowConfig:
         # Set up the download options
         self.populate_downloads()
 
-    @staticmethod
-    def logout():
+    def logout(self):
+        # Clear the session state
         st.session_state.clear()
+        # Initialize the session configuration
+        st.session_state["config"] = self.format_config()
 
     def populate_form(self):
         """Generate the form based on the configuration elements."""
