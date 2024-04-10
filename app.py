@@ -9,9 +9,9 @@ from cirro import DataPortal
 from cirro.sdk.reference import DataPortalReference
 from cirro.sdk.process import DataPortalProcess
 from cirro.sdk.dataset import DataPortalDataset
-from cirro.api.auth.oauth_client import ClientAuth
-from cirro.api.config import AppConfig
-from cirro.api.clients.portal import DataPortalClient
+from cirro.config import AppConfig
+from cirro.auth.device_code import DeviceCodeAuth
+from cirro import CirroApi
 from gql.transport.requests import TransportAlreadyConnected
 import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
@@ -114,7 +114,7 @@ def cirro_login_sub(auth_io: io.StringIO):
 
     app_config = AppConfig()
 
-    st.session_state['DataPortal-auth_info'] = ClientAuth(
+    st.session_state['DataPortal-auth_info'] = DeviceCodeAuth(
         region=app_config.region,
         client_id=app_config.client_id,
         auth_endpoint=app_config.auth_endpoint,
@@ -122,7 +122,7 @@ def cirro_login_sub(auth_io: io.StringIO):
         auth_io=auth_io
     )
 
-    st.session_state['DataPortal-client'] = DataPortalClient(
+    st.session_state['DataPortal-client'] = CirroApi(
         auth_info=st.session_state['DataPortal-auth_info']
     )
     st.session_state['DataPortal'] = DataPortal(
@@ -141,7 +141,10 @@ def list_datasets_in_project(project_name) -> List[str]:
     project = portal.get_project_by_name(project_name)
 
     # Get the list of datasets available (using their easily-readable names)
-    return [""] + [ds.name for ds in project.list_datasets()]
+    try:
+        return [""] + [ds.name for ds in project.list_datasets()]
+    except TypeError:
+        return [""]
 
 
 @autoretry
