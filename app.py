@@ -23,7 +23,7 @@ def get_portal():
 
     # If login information has not been setup, skip this
     if st.session_state.get("DataPortal") is None:
-        cirro_login(login_empty)
+        cirro_login(login_empty, base_url)
 
     msg = "Error encountered logging in"
     assert st.session_state.get("DataPortal") is not None, msg
@@ -36,7 +36,7 @@ def session_cache(func):
 
         # If login information has not been setup, skip this
         if st.session_state.get("DataPortal") is None:
-            cirro_login(login_empty)
+            cirro_login(login_empty, base_url)
 
         # Get the session context, which has a unique ID element
         ctx = get_script_run_ctx()
@@ -85,7 +85,7 @@ def autoretry(func, retries=15, exception=TransportAlreadyConnected):
     return inner
 
 
-def cirro_login(login_empty: DeltaGenerator):
+def cirro_login(base_url: str, login_empty: DeltaGenerator):
     # If we have not logged in yet
     if st.session_state.get('DataPortal') is None:
 
@@ -93,7 +93,7 @@ def cirro_login(login_empty: DeltaGenerator):
         auth_io = io.StringIO()
         cirro_login_thread = threading.Thread(
             target=cirro_login_sub,
-            args=(auth_io,)
+            args=(auth_io, base_url)
         )
         script_run_context.add_script_run_ctx(cirro_login_thread)
 
@@ -110,9 +110,9 @@ def cirro_login(login_empty: DeltaGenerator):
         login_empty.empty()
 
 
-def cirro_login_sub(auth_io: io.StringIO):
+def cirro_login_sub(auth_io: io.StringIO, base_url: str):
 
-    app_config = AppConfig()
+    app_config = AppConfig(base_url=base_url)
 
     st.session_state['DataPortal-auth_info'] = DeviceCodeAuth(
         region=app_config.region,
@@ -123,7 +123,8 @@ def cirro_login_sub(auth_io: io.StringIO):
     )
 
     st.session_state['DataPortal-client'] = CirroApi(
-        auth_info=st.session_state['DataPortal-auth_info']
+        auth_info=st.session_state['DataPortal-auth_info'],
+        base_url=base_url
     )
     st.session_state['DataPortal'] = DataPortal(
         client=st.session_state['DataPortal-client']
@@ -2579,9 +2580,10 @@ if __name__ == "__main__":
         page_icon="https://cirro.bio/favicon-32x32.png"
     )
     st.header("Cirro - Workflow Configuration")
-
     # Log in to Cirro
-    login_empty = st.empty()
-    cirro_login(login_empty)
+    base_url = st.text_input("Enter your Cirro instance URL")
+    if base_url:
+        login_empty = st.empty()
+        cirro_login(base_url, login_empty)
 
-    configure_workflow_app()
+        configure_workflow_app()
