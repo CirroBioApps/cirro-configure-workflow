@@ -9,7 +9,7 @@ from cirro import DataPortal
 from cirro.sdk.reference import DataPortalReference
 from cirro.sdk.process import DataPortalProcess
 from cirro.sdk.dataset import DataPortalDataset
-from cirro.config import AppConfig
+from cirro.config import AppConfig, list_tenants
 from cirro.auth.device_code import DeviceCodeAuth
 from cirro import CirroApi
 from gql.transport.requests import TransportAlreadyConnected
@@ -2580,8 +2580,22 @@ if __name__ == "__main__":
         page_icon="https://cirro.bio/favicon-32x32.png"
     )
     st.header("Cirro - Workflow Configuration")
+
+    # Get the options of the available tenants to log in
+    tenants = {
+        tenant["displayName"]: tenant["domain"]
+        for tenant in list_tenants()
+    }
+
+    # Select the tenant
+    base_url = tenants.get(
+        st.selectbox(
+            "Select your Cirro Instance",
+            [""] + list(tenants.keys())
+        )
+    )
+
     # Log in to Cirro
-    base_url = st.text_input("Enter your Cirro instance URL")
     if base_url:
         login_empty = st.empty()
         cirro_login(base_url, login_empty)
