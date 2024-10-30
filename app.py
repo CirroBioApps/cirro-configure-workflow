@@ -1002,7 +1002,7 @@ uploaded to their project.
 
         # Return the list of files available
         return [
-            file['saveAs']
+            file.to_dict()['saveAs']
             for file in ref.validation
         ]
 
